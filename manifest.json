@@ -1,0 +1,25 @@
+{
+  "name": "Taj Karyana & General Store",
+  "short_name": "Taj Calc",
+  "start_url": "index.html",
+   "display": "Minimal-UI",
+//  "display": "browser",
+//  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ff9500",
+    "icons": [
+    {
+      "src": "https://ui-avatars.com/api/?name=T&background=ff9500&color=fff&size=192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://ui-avatars.com/api/?name=T&background=ff9500&color=fff&size=512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+  }
+  

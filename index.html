@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Pro Calc Stable</title>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff9500">
+<link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=T&background=ff9500&color=fff&size=192">
+
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log("Service Worker Registered Successfully"))
+      .catch((err) => console.log("Service Worker Failed:", err));
+  }
+</script>
+
+    
+    <style>
+        /* Default (White/Light Mode) */
+        :root { 
+            --bg: #000000; 
+            --text: #ffffff; 
+            --btn-bg: #1c1c1c; 
+            --nav-text: #888888; 
+            --accent: #ff9500; 
+            --border: #2c2c2e;
+            --card-bg: #0a0a0a;
+        }
+
+        html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); overflow: hidden; font-family: sans-serif; }
+
+        .app-container { 
+            width: 100%; max-width: 450px; display: flex; flex-direction: column; 
+            height: 100vh; margin: auto; position: relative; 
+        }
+
+        /* Nav Tabs */
+        .nav { 
+            display: flex; justify-content: space-around; align-items: center; 
+            padding: 10px; font-size: 1.1rem; flex-shrink: 0; position: relative; z-index: 1000; 
+        }
+
+        .nav span { color: var(--nav-text); cursor: pointer; padding-bottom: 5px; }
+        .nav span.active { color: var(--text); border-bottom: 2px solid var(--accent); }
+
+        /* Views */
+        .view { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+        .view.active { display: flex; }
+
+        .display-box { padding: 15px 25px; text-align: right; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+        #calculation-line { 
+    font-size: 1.4rem; 
+    color: #bbb; 
+    margin-bottom: 8px; 
+    min-height: 30px; 
+    max-height: 25vh; /* Maximum height taake screen ko dhakka na lagay */
+    overflow-y: auto; /* Agar boht zyada lines hon to scroll ho jaye */
+    word-wrap: break-word; /* Bari raqam ko sahi se break karega */
+    white-space: pre-wrap; /* Spaces aur operators ko sahi line mein rakhega */
+    word-break: break-all; /* Kisi bhi point se line break kar dega */
+    line-height: 1.4; /* Lines ke darmiyan munasib faasla */
+    display: block; /* Poori width istemal karega */
+}
+
+        #answer-line { font-size: 2.2rem; color: #fff; min-height: 3.2rem; transition: all 0.2s ease; word-break: break-all; line-height: 1; }
+        .final-answer { font-size: 2.4rem !important; font-weight: bold !important; }
+
+        .pad { background: #000; padding: 10px 15px 25px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; flex-shrink: 0; }
+        .btn { 
+            height: 55px; border-radius: 9px; font-size: 1.9rem; border: none; 
+            background: #1e1e1e; color: white; display: flex; align-items: center; 
+            justify-content: center; position: relative; transition: all 0.05s ease; 
+            box-shadow: 0 4px 0 #000; cursor: pointer; 
+        }
+        .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; opacity: 0.7; }
+
+        .op { color: var(--accent) !important; font-weight: bold; }
+        .ac { color: #ff4444 !important; }
+        .eq { background: var(--accent) !important; color: #fff !important; border-radius: 90px; }
+
+        /* Converter Styling */
+        .conv-container { padding: 20px; overflow-y: auto; flex: 1; background: #000; }
+        .conv-card { background: #111; border-radius: 15px; padding: 15px; margin-bottom: 15px; border: 1px solid #222; }
+        .conv-label { color: var(--accent); font-size: 0.8rem; margin-bottom: 8px; display: block; letter-spacing: 1px; }
+        .conv-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .conv-input { background: #222; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 8px; font-size: 1.1rem; width: 60%; }
+        .conv-select { background: #333; border: none; color: #fff; padding: 10px; border-radius: 8px; font-size: 0.9rem; width: 40%; }
+        .rate-info { color: #666; font-size: 0.75rem; margin-top: 5px; }
+
+        /* --- History Panel Final Fix --- */
+#history-panel { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: var(--bg) !important; 
+    display: none; 
+    flex-direction: column; 
+    z-index: 9999 !important; 
+}
+
+/* Header ka background aur border fix */
+.hist-header { 
+    display: flex; 
+    align-items: center; 
+    padding: 15px; 
+    background: var(--bg); 
+    border-bottom: 1px solid var(--border);
+}
+
+/* Title (History) jo beech mein hota hai */
+.hist-header span { 
+    color: var(--text) !important; /* Ye white mode mein black aur dark mein white hoga */
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* Back button aur Edit button hamesha orange rahen gay */
+.hist-header span[onclick*="closeHistory"], 
+#edit-btn { 
+    color: var(--accent) !important; 
+    cursor: pointer;
+    flex: 0; /* Buttons ko apni jagah rakhne ke liye */
+}
+
+/* Title ko center karne ke liye */
+.hist-header span:nth-child(2) {
+    flex: 1;
+    text-align: center;
+}
+
+#history-list {
+    background: var(--bg);
+    flex: 1;
+    overflow-y: auto;
+}
+
+        
+        
+        .date-header-row { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 10px 0; border-top: 1px solid #1a1a1a; }
+        .date-label { color: #666; font-size: 0.9rem; }
+        .history-card { background: #0a0a0a; border-radius: 12px; margin-bottom: 15px; padding: 12px; border: 1px solid #111; }
+        .history-card.selected { border-color: var(--accent); background: #151005; }
+        .card-main { display: flex; align-items: flex-start; }
+        .select-checkbox { width: 22px; height: 22px; accent-color: var(--accent); margin-right: 15px; display: none; margin-top: 10px;}
+        .card-content { flex-grow: 1; text-align: right; }
+        .hist-exp-text { color: #888; font-size: 1.2rem; margin-bottom: 8px; }
+        .hist-res-text { color: #fff; font-size: 1.6rem; font-weight: bold; }
+        .card-actions { display: flex; justify-content: flex-end; gap: 15px; margin-top: 10px; border-top: 1px solid #1a1a1a; padding-top: 8px; }
+        .action-btn { background: none; border: none; color: var(--accent); font-size: 0.85rem; cursor: pointer; }
+        .history-footer { display: none; padding: 20px 15px 35px; background: #0a0a0a; border-top: 1px solid #222; justify-content: space-between; align-items: center; }
+        .footer-btn { background: none; border: none; color: #fff; font-size: 1rem; cursor: pointer; }
+        .footer-btn.delete-main { color: #ff4444; font-weight: bold; }
+
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s; text-align: center;
+        }
+        .shop-name { color: var(--accent); font-size: 2.2rem; font-weight: bold; margin-bottom: 15px; }
+        .whatsapp-box { display: flex; align-items: center; gap: 10px; background: #1c1c1c; padding: 10px 20px; border-radius: 50px; margin-bottom: 15px; border: 1px solid #333; }
+        .phone-num { color: #fff; font-size: 1.2rem; }
+        .address-text { color: #888; font-size: 0.9rem; }
+        /* 3 Dots Styling */
+.more-options {
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0 10px;
+    color: var(--nav-text);
+}
+
+/* Pop-up Overlay */
+.popup-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: none; /* Shuru mein chhupa hua */
+    justify-content: center;
+    align-items: center;
+    z-index: 11000;
+}
+
+/* Pop-up Box */
+.popup-box {
+    background: #1c1c1c;
+    width: 250px;
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid #333;
+    text-align: center;
+    color: white;
+}
+#install-btn {
+    background: linear-gradient(135deg, #ff9500, #ff5e00);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 149, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 auto;
+}
+
+#install-btn:active {
+    transform: scale(0.95);
+}
+
+#install-btn i {
+    font-style: normal;
+    font-size: 20px;
+}
+
+
+    </style>
+</head>
+<body>
+
+<div id="splash-screen">
+    <div class="shop-name">Taj Karyana <br> & General Store</div>
+    <div class="whatsapp-box">
+        <svg viewBox="0 0 24 24" fill="#25D366" width="24" height="24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.631 1.433h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        <span class="phone-num">03146800959</span>
+    </div>
+    <div class="address-text">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--accent)" style="margin-right: 5px;">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-12-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+Old KLP Road Nazd Mazri Pet
+</div>
+</div>
+
+<div class="app-container">
+    <div class="nav">
+    <span id="tab-calc" class="active" onclick="switchView('calc')">Calculator</span>
+    <span id="tab-conv" onclick="switchView('conv')">Converter</span>
+    <span class="history-trigger" onclick="openHistory()">History</span>
+    <span class="more-options" onclick="togglePopup()">&#8942;</span> </div>
+
+<div id="custom-popup" class="popup-overlay" onclick="togglePopup()">
+    <div class="popup-box" onclick="event.stopPropagation()">
+        <h3 style="margin-top: 0; color: var(--accent);">App Info</h3>
+        <hr style="border: 0.5px solid #333; margin: 15px 0;">
+        
+        <div style="text-align: left; font-size: 0.95rem; line-height: 1.8;">
+            <p><strong>Developer:</strong> <span style="color: #bbb;">Wasidevelopers</span></p>
+            <p><strong>WhatsApp:</strong> <span style="color: #bbb;">0334-6800959</span></p>
+            <p><strong>Version:</strong> <span style="color: #bbb;">v2.0.5 (Stable)</span></p>
+        </div>
+        <div id="install-container" style="display: none; text-align: center; margin: 20px 0;">
+    <button id="install-btn" onclick="handleInstallClick()">
+        <i>📲</i> Install Taj Calculator
+    </button>
+</div>
+
+
+        <button onclick="togglePopup()" style="background: #333; border: none; color: white; width: 100%; padding: 10px; border-radius: 8px; margin-top: 20px; cursor: pointer;">
+            Close
+        </button>
+    </div>
+</div>
+
+
+    <div id="calc-view" class="view active">
+        <div class="display-box">
+            <div id="calculation-line"></div>
+            <div id="answer-line">0</div>
+        </div>
+        <div class="pad">
+            <button class="btn ac" onclick="allClear()">AC</button>
+            <button class="btn op" onclick="back()">&#9003;</button>
+            <button class="btn op" onclick="addOperator('%')">%</button>
+            <button class="btn op" onclick="addOperator('/')">&divide;</button>
+            <button class="btn" onclick="addNum('7')">7</button>
+            <button class="btn" onclick="addNum('8')">8</button>
+            <button class="btn" onclick="addNum('9')">9</button>
+            <button class="btn op" onclick="addOperator('*')">&times;</button>
+            <button class="btn" onclick="addNum('4')">4</button>
+            <button class="btn" onclick="addNum('5')">5</button>
+            <button class="btn" onclick="addNum('6')">6</button>
+            <button class="btn op" onclick="addOperator('-')">-</button>
+            <button class="btn" onclick="addNum('1')">1</button>
+            <button class="btn" onclick="addNum('2')">2</button>
+            <button class="btn" onclick="addNum('3')">3</button>
+            <button class="btn op" onclick="addOperator('+')">+</button>
+            <button class="btn" onclick="addNum('00')">00</button>
+            <button class="btn" onclick="addNum('0')">0</button>
+            <button class="btn" onclick="addNum('.')">.</button>
+            <button class="btn eq" onclick="calculate()">=</button>
+        </div>
+    </div>
+
+
+
+
+    <div id="conv-view" class="view">
+        <div class="conv-container">
+            <div class="conv-card">
+                <span class="conv-label">LIVE CURRENCY</span>
+                <div class="conv-row">
+                    <input type="number" class="conv-input" id="c-amt" value="1" oninput="doCurrency()">
+                    <select class="conv-select" id="c-from" onchange="doCurrency()">
+                        <option value="USD" selected >USD (US Dollar)</option>
+<option value="PKR"> PKR (Pakistani Rupee)</option>
+<option value="SAR">SAR (Saudi Riyal)</option>
+<option value="AED">AED (UAE Dirham)</option>
+<option value="INR">INR (Indian Rupee)</option>
+<option value="PHP">PHP (Philippine Peso)</option>
+<option value="BDT">BDT (Bangladeshi Taka)</option>
+<option value="AFN">AFN (Afghan Afghani)</option>
+<option value="GBP">GBP (British Pound)</option>
+<option value="EUR">EUR (Euro)</option>
+<option value="KWD">KWD (Kuwaiti Dinar)</option>
+<option value="OMR">OMR (Omani Rial)</option>
+<option value="QAR">QAR (Qatari Riyal)</option>
+<option value="MYR">MYR (Malaysian Ringgit)</option>
+<option value="CNY">CNY (Chinese Yuan)</option>
+<option value="TRY">TRY (Turkish Lira)</option>
+<option value="CAD">CAD (Canadian Dollar)</option>
+<option value="AUD">AUD (Australian Dollar)</option>
+<option value="JPY">JPY (Japanese Yen)</option>
+
+                    </select>
+                </div>
+                <div class="conv-row">
+                    <input type="text" class="conv-input" id="c-res" readonly>
+                    <select class="conv-select" id="c-to" onchange="doCurrency()">
+                        <option value="USD">USD (US Dollar)</option>
+<option value="PKR" selected > PKR (Pakistani Rupee)</option>
+<option value="SAR">SAR (Saudi Riyal)</option>
+<option value="AED">AED (UAE Dirham)</option>
+<option value="INR">INR (Indian Rupee)</option>
+<option value="PHP">PHP (Philippine Peso)</option>
+<option value="BDT">BDT (Bangladeshi Taka)</option>
+<option value="AFN">AFN (Afghan Afghani)</option>
+<option value="GBP">GBP (British Pound)</option>
+<option value="EUR">EUR (Euro)</option>
+<option value="KWD">KWD (Kuwaiti Dinar)</option>
+<option value="OMR">OMR (Omani Rial)</option>
+<option value="QAR">QAR (Qatari Riyal)</option>
+<option value="MYR">MYR (Malaysian Ringgit)</option>
+<option value="CNY">CNY (Chinese Yuan)</option>
+<option value="TRY">TRY (Turkish Lira)</option>
+<option value="CAD">CAD (Canadian Dollar)</option>
+<option value="AUD">AUD (Australian Dollar)</option>
+<option value="JPY">JPY (Japanese Yen)</option>
+
+                    </select>
+                </div>
+                <div id="c-info" class="rate-info">Rates updating live...</div>
+            </div>
+            
+            <div class="conv-card">
+                <span class="conv-label">GOLD & SILVER</span>
+                <div class="conv-row">
+                    <input type="number" class="conv-input" id="g-val" value="1" oninput="doGoldWeight()">
+                    <select class="conv-select" id="g-from" onchange="doGoldWeight()">
+            <option value="tola" selected >Tola</option>
+            <option value="masha">Masha</option>
+            <option value="ratti">Ratti</option>
+            <option value="g" >Gram</option>
+                    </select>
+                </div>
+                <div class="conv-row">
+                    <input type="text" class="conv-input" id="g-res" readonly>
+                    <select class="conv-select" id="g-to" onchange="doGoldWeight()">
+            <option value="tola" >Tola</option>
+            <option value="masha" selected >Masha</option>
+            <option value="ratti">Ratti</option>
+            <option value="g" >Gram</option>
+                    </select>
+                </div>
+                
+                <div class="rate-info" style="color: var(--accent);">Standard: 1 Tola = 12 Masha = 96 Ratti <br>1 Tola = 11.664 Grams</div>
+            </div>
+            <div class="conv-card">
+    <span class="conv-label">LENGTH & DISTANCE</span>
+    <div class="conv-row">
+        <input type="number" class="conv-input" id="l-val" value="1" oninput="doLength()">
+        <select class="conv-select" id="l-from" onchange="doLength()">
+            <option value="km" selected >KM</option>
+            <option value="m">Meter</option>
+            <option value="ft">Foot</option>
+            <option value="in">Inches</option>
+            <option value="cm">Centimetre</option>
+        </select>
+    </div>
+    <div class="conv-row">
+        <input type="text" class="conv-input" id="l-res" readonly>
+        <select class="conv-select" id="l-to" onchange="doLength()">
+            <option value="m" selected>Meter</option>
+            <option value="km">KM</option>
+            <option value="ft">Foot</option>
+            <option value="in">Inches</option>
+            <option value="cm">Centimetre</option>
+        </select>
+    </div>
+</div>
+            <div class="conv-card">
+                <span class="conv-label">WEIGHT</span>
+                <div class="conv-row">
+                    <input type="number" class="conv-input" id="w-val" value="1" oninput="doGeneralWeight()">
+                    <select class="conv-select" id="w-from" onchange="doGeneralWeight()">
+            <option value="kg" selected>KG</option>
+            <option value="g">Gram</option>
+            <option value="ton">Ton (US)</option>
+            <option value="mton">Metric Ton</option>
+                    </select>
+                </div>
+                <div class="conv-row">
+                    <input type="text" class="conv-input" id="w-res" readonly>
+                    <select class="conv-select" id="w-to" onchange="doGeneralWeight()">
+            <option value="kg">KG</option>
+            <option value="g" selected >Gram</option>
+            <option value="ton">Ton (US)</option>
+            <option value="mton">Metric Ton</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="history-panel">
+        <div class="hist-header">
+            <span style="font-size: 1.8rem; cursor: pointer; padding: 5px;" onclick="closeHistory()">&#10005;</span>
+            <span style="flex-grow:1; text-align:center; font-size:1.2rem;">History</span>
+            <span id="edit-btn" style="color:var(--accent); cursor:pointer;" onclick="toggleEditMode()">Clear</span>
+        </div>
+        <div id="history-list"></div>
+        <div id="history-footer" class="history-footer">
+            <button class="footer-btn" onclick="selectAllHistory()">Select All</button>
+            <button class="footer-btn delete-main" onclick="deleteSelected()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentExp = ""; 
+    let isFinished = false; 
+    let lastFullExp = ""; 
+    let editMode = false; // Fix 1: Variable declare kiya
+
+    function switchView(v) {
+        document.getElementById('calc-view').classList.toggle('active', v==='calc');
+        document.getElementById('conv-view').classList.toggle('active', v==='conv');
+        document.getElementById('tab-calc').classList.toggle('active', v==='calc');
+        document.getElementById('tab-conv').classList.toggle('active', v==='conv');
+        if(v==='conv') { doCurrency(); doLength(); doGeneralWeight(); }
+    }
+
+    function openHistory() { 
+        const panel = document.getElementById('history-panel');
+        if(panel) { panel.style.display = 'flex'; loadHistory(); }
+    }
+        function closeHistory() { 
+        if(typeof editMode !== 'undefined' && editMode) {
+            editMode = true; // Force toggle to close
+            toggleEditMode();
+        }
+        document.getElementById('history-panel').style.display = 'none'; 
+        switchView('calc'); // Fix 2: Wapas calculator par redirect
+    }
+
+    // Fix 3: Recalculate function (Formatting saaf karne ke liye)
+    function recalculate(exp) { 
+        let cleanExp = exp.toString().replace(/,/g, '').replace(/=/g, '').trim(); 
+        currentExp = cleanExp.replace(/×/g, '*').replace(/÷/g, '/'); 
+        isFinished = false; 
+        document.getElementById('answer-line').classList.remove('final-answer'); 
+        closeHistory(); 
+        updateUI(); 
+    }
+
+    // Fix 4: Copy function with Toast alert
+    function copyValue(val) {
+        let cleanVal = val.replace(/,/g, '').replace('=', '').trim();
+        navigator.clipboard.writeText(cleanVal);
+        alert("Copied: " + cleanVal); // Chota toast message
+    }
+
+    function toggleEditMode() {
+        editMode = !editMode;
+        const checkboxes = document.querySelectorAll('.select-checkbox');
+        const footer = document.getElementById('history-footer');
+        const editBtn = document.getElementById('edit-btn');
+        checkboxes.forEach(cb => cb.style.display = editMode ? 'block' : 'none');
+        if(footer) footer.style.display = editMode ? 'flex' : 'none';
+        if(editBtn) editBtn.innerText = editMode ? 'Cancel' : 'Clear';
+    }
+
+    function saveToHistory(exp, res) {
+        let history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+        let dateStr = new Date().toLocaleDateString('en-GB'); 
+        const id = "ID-" + Date.now();
+        history.unshift({ id, exp, res, date: dateStr });
+        localStorage.setItem('calcHistory', JSON.stringify(history.slice(0, 100)));
+    }
+
+    function loadHistory() {
+        const list = document.getElementById('history-list');
+        let history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+        let html = ""; let lastDate = "";
+        history.forEach(item => {
+            if(item.date !== lastDate) { html += `<div class="date-header-row"><span class="date-label">${item.date}</span></div>`; lastDate = item.date; }
+            html += `<div class="history-card" id="card-${item.id}"><div class="card-main"><input type="checkbox" class="select-checkbox" value="${item.id}" onchange="updateCardStyle('${item.id}')"><div class="card-content" onclick="toggleCheck('${item.id}')"><div class="hist-exp-text">${item.exp}</div><div class="hist-res-text">${item.res}</div></div></div><div class="card-actions"><button class="action-btn" onclick="copyValue('${item.res}')">Copy</button><button class="action-btn" onclick="recalculate('${item.exp}')">Recalculate</button></div></div>`;
+        });
+        list.innerHTML = html || "<p style='text-align:center; margin-top:50px; color:#444;'>No records</p>";
+    }
+
+    function toggleCheck(id) { if(!editMode) return; const cb = document.querySelector(`.select-checkbox[value="${id}"]`); cb.checked = !cb.checked; updateCardStyle(id); }
+    function updateCardStyle(id) { const card = document.getElementById(`card-${id}`); if(card) card.classList.toggle('selected', card.querySelector('.select-checkbox').checked); }
+    
+    function selectAllHistory() { 
+        const checkboxes = document.querySelectorAll('.select-checkbox'); 
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked); 
+        checkboxes.forEach(cb => { 
+            cb.checked = !allChecked; 
+            updateCardStyle(cb.value); 
+        }); 
+    }
+
+    function deleteSelected() {
+        const selectedIds = Array.from(document.querySelectorAll('.select-checkbox:checked')).map(cb => cb.value);
+        if(selectedIds.length === 0) return;
+        let history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
+        history = history.filter(item => !selectedIds.includes(item.id));
+        localStorage.setItem('calcHistory', JSON.stringify(history));
+        toggleEditMode(); 
+        loadHistory();
+    }
+
+    function addNum(num) {
+        if (isFinished) { currentExp = ""; isFinished = false; document.getElementById('answer-line').classList.remove('final-answer'); }
+        let expStr = currentExp.toString();
+        let parts = expStr.split(/[\+\-\*\/%]/);
+        let lastNumberPart = parts[parts.length - 1];
+        if (num === '.') {
+            if (lastNumberPart.includes('.')) return; 
+            if (lastNumberPart === "") { currentExp += "0."; updateUI(); return; }
+        }
+        if (num === '0' || num === '00') {
+            if (lastNumberPart === "") { currentExp += "0"; updateUI(); return; }
+            if (lastNumberPart === "0") return;
+        }
+        if (/[1-9]/.test(num) && lastNumberPart === "0") {
+            currentExp = expStr.slice(0, -1) + num;
+            updateUI(); return;
+        }
+        currentExp += num;
+        updateUI();
+    }
+
+    function addOperator(op) {
+        if ((!currentExp || currentExp === "" || currentExp === "0") && op === '-') {
+            currentExp = "-"; updateUI(); return;
+        }
+        if (!currentExp || currentExp === "" || currentExp === "0" || currentExp === "-") {
+            if (op !== '-') {
+                document.getElementById('calculation-line').innerText = op.replace(/\*/g, '×').replace(/\//g, '÷');
+                return;
+            }
+        }
+        const lastChar = currentExp.toString().slice(-1);
+        if (['+', '-', '*', '/', '%'].includes(lastChar)) {
+            currentExp = currentExp.slice(0, -1) + op;
+        } else {
+            currentExp += op;
+        }
+        isFinished = false;
+        updateUI();
+    }
+
+    function allClear() { currentExp = ""; document.getElementById('calculation-line').innerText = ""; document.getElementById('answer-line').innerText = "0"; document.getElementById('answer-line').classList.remove('final-answer'); }
+    
+    function back() {
+        if (isFinished) {
+            currentExp = lastFullExp; 
+            isFinished = false; 
+            document.getElementById('answer-line').classList.remove('final-answer');
+            updateUI();
+        } else {
+            if (currentExp && currentExp.length > 0) {
+                currentExp = currentExp.toString().slice(0, -1);
+                updateUI();
+            }
+        }
+    }
+
+    function updateUI() {
+        const ansLine = document.getElementById('answer-line');
+        const calcLine = document.getElementById('calculation-line');
+
+        let formattedExp = currentExp.toString()
+            .replace(/\*/g, '×')
+            .replace(/\//g, '÷')
+            .replace(/\d+(\.\d+)?/g, (num) => { 
+                return Number(num).toLocaleString(); 
+            });
+
+        calcLine.innerText = formattedExp;
+
+        try {
+            // Yahan check: Agar aakhir mein +, -, *, / ho to calculate na kare, 
+            // LEKIN agar % ho to calculation honi chahiye!
+            if (currentExp && !['+', '-', '*', '/'].includes(currentExp.toString().slice(-1))) {
+                
+                // Percentage ko math mein convert karna
+                let mathReady = currentExp.toString().replace(/(\d+(\.\d+)?)%/g, "($1/100)");
+                
+                let res = eval(mathReady);
+                ansLine.innerText = res.toLocaleString(undefined, {maximumFractionDigits: 2});
+            } else if (!currentExp) {
+                ansLine.innerText = "0";
+            }
+        } catch(e) {}
+    }
+
+    function calculate() {
+        if (!currentExp) return;
+        try {
+            let clean = currentExp.toString();
+            
+            // Yahan tabdeeli: Hum sirf +, -, *, / ko delete karenge agar wo aakhir mein hain.
+            // Hum '%' ko delete NAHI karenge kyunke wo raqam ka hissa hai.
+            while(['+', '-', '*', '/'].includes(clean.slice(-1))) {
+                clean = clean.slice(0, -1);
+            }
+            
+            lastFullExp = clean;
+            
+            // Math conversion
+            let mathExp = clean.replace(/(\d+(\.\d+)?)%/g, "($1/100)");
+            let res = eval(mathExp);
+            
+            let formattedExp = clean.toString()
+                .replace(/\*/g, '×').replace(/\//g, '÷')
+                .replace(/\d+(\.\d+)?/g, (n) => Number(n).toLocaleString());
+                
+            document.getElementById('calculation-line').innerText = formattedExp + " =";
+            document.getElementById('answer-line').innerText = "= " + res.toLocaleString(undefined, {maximumFractionDigits: 2});
+            document.getElementById('answer-line').classList.add('final-answer');
+            
+            saveToHistory(formattedExp + " =", res.toLocaleString());
+            
+            currentExp = res.toString();
+            isFinished = true;
+        } catch(e) {
+            console.log("Calculation Error");
+        }
+    }
+    
+    async function doCurrency() {
+        const f = document.getElementById('c-from').value;
+        const t = document.getElementById('c-to').value;
+        const amt = document.getElementById('c-amt').value;
+        try {
+            const r = await fetch(`https://open.er-api.com/v6/latest/${f}`);
+            const d = await r.json();
+            const rate = d.rates[t];
+            document.getElementById('c-res').value = (amt * rate).toFixed(2);
+            document.getElementById('c-info').innerText = `Live: 1 ${f} = ${rate.toFixed(2)} ${t}`;
+        } catch(e) { document.getElementById('c-info').innerText = "Offline"; }
+    }
+
+function doGoldWeight() {
+    // Standard conversion units (base unit: Gram)
+    const units = {
+        g: 1,
+        tola: 11.664,
+        masha: 0.972, // (11.664 / 12)
+        ratti: 0.1215 // (11.664 / 96)
+    };
+
+    const val = document.getElementById('g-val').value;
+    const fromUnit = document.getElementById('g-from').value;
+    const toUnit = document.getElementById('g-to').value;
+    const resField = document.getElementById('g-res');
+
+    if (!val || val < 0) {
+        resField.value = "";
+        return;
+    }
+
+    // Pehle gram mein convert karo, phir target unit mein
+    const inGrams = val * units[fromUnit];
+    const finalRes = inGrams / units[toUnit];
+
+    // Result ko 3 decimal tak dikhana taake sona sahi napa jaye
+    resField.value = finalRes.toFixed(3);
+}
+
+function doGeneralWeight() {
+    // Sab units ko Gram (g) ke hisab se set kiya gaya hai
+    const u = { 
+        g: 1, 
+        kg: 1000, 
+        ton: 907184.74, // US Ton (Short Ton)
+        mton: 1000000   // Metric Ton (1000 KG) - Jo aapne pucha tha
+    };
+
+    const f = document.getElementById('w-from').value;
+    const t = document.getElementById('w-to').value;
+    const v = document.getElementById('w-val').value;
+
+    if (!v) {
+        document.getElementById('w-res').value = "";
+        return;
+    }
+
+    // Calculation logic
+    document.getElementById('w-res').value = ((v * u[f]) / u[t]).toFixed(3);
+}
+
+    
+    function doLength() {
+        const u = { m:1, km:1000, ft:0.3048, in:0.0254, cm:0.01 };
+        const f = document.getElementById('l-from').value;
+        const t = document.getElementById('l-to').value;
+        const v = document.getElementById('l-val').value;
+        if (!v) return;
+        document.getElementById('l-res').value = ((v * u[f]) / u[t]).toFixed(3);
+    }
+
+    function togglePopup() {
+        const popup = document.getElementById('custom-popup');
+        popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    setTimeout(() => { document.getElementById('splash-screen').style.opacity = '0'; 
+    setTimeout(() => document.getElementById('splash-screen').style.visibility = 'hidden', 500); }, 3000);
+</script>
+
+<script>
+// --- PWA INSTALL & NOTIFICATION LOGIC ---
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Container ko yahan dhundein taake error na aaye
+    const installBtnContainer = document.getElementById('install-container'); 
+    if(installBtnContainer) installBtnContainer.style.display = 'block';
+});
+
+function handleInstallClick() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+        const installBtnContainer = document.getElementById('install-container');
+        if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+            if(installBtnContainer) installBtnContainer.style.display = 'none';
+        }
+        deferredPrompt = null;
+    });
+}
+
+function askNotificationPermission() {
+    if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                // Welcome notification ka function yahan call kar sakte hain
+            }
+        });
+    }
+}
+
+window.addEventListener('load', () => {
+    askNotificationPermission();
+    
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        const installBtnContainer = document.getElementById('install-container');
+        if(installBtnContainer) installBtnContainer.style.display = 'none';
+    }
+});
+</script>
+
+
+</body>
+</html>
+    
