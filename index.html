@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Pro Calc Stable</title>
+
+    /* Cache updates */
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+    
     <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff9500">
 <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=T&background=ff9500&color=fff&size=192">
@@ -789,7 +796,30 @@ window.addEventListener('load', () => {
 </script>
 
 
+    // Jab bhi window load ho, check karo ke naya version hai ya nahi
+window.addEventListener('load', function() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                // Ye line naye code ko purane code par dhakka dene ke liye hai
+                registration.update();
+            }
+        });
+    }
+});
+
+// Agar naya Service Worker mil jaye to page foran reload kardo
+if (navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+    });
+}
+
+
+    
+
 </body>
 </html>
 
     
+
