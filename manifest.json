@@ -1,6 +1,6 @@
 {
   "name": "Taj Karyana & General Store",
-  "short_name": "Taj Calc",
+  "short_name": "Taj Calculator",
   "start_url": "index.html",
    "display": "Minimal-UI",
 //  "display": "browser",
@@ -22,4 +22,5 @@
     }
   ]
   }
+
   
