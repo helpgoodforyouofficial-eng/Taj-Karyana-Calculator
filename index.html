@@ -454,6 +454,33 @@ Taj Chowk National Highway Sadiq abad.
 </div>
 
 <script>
+    // 1. Service Worker ko har baar naya fetch karne par majboor karna
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        // Har baar jab app khulay, check karo naya version
+        reg.update(); 
+        
+        reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // Naya code mil gaya! Page refresh karke apply karo
+                    window.location.reload();
+                }
+            };
+        };
+    });
+}
+
+// 2. Extra Force: Agar internet on hai to cache ko bypass karo
+window.addEventListener('load', () => {
+    if (navigator.onLine) {
+        fetch(window.location.href, { cache: 'reload' }).then(() => {
+            console.log("Network checked for updates");
+        }).catch(err => console.log("Offline mode"));
+    }
+});
+    
     let currentExp = ""; 
     let isFinished = false; 
     let lastFullExp = ""; 
@@ -822,6 +849,7 @@ if (navigator.serviceWorker) {
 </html>
 
     
+
 
 
 
