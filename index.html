@@ -18,11 +18,35 @@
 
 <script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log("Service Worker Registered Successfully"))
-      .catch((err) => console.log("Service Worker Failed:", err));
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      console.log("Service Worker Registered");
+
+      // 1. Har baar jab app khulay, GitHub se naya version check karo
+      reg.update();
+
+      // 2. Agar naya code mil jaye, to usay install karke foran apply karo
+      reg.onupdatefound = () => {
+        const installingWorker = reg.installing;
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Naya version mil gaya! App ko automatic refresh karo
+            window.location.reload();
+          }
+        };
+      };
+    }).catch((err) => console.log("Registration Failed:", err));
   }
+
+  // 3. Extra Force: Internet on ho to cache ko bypass kar ke fresh check karo
+  window.addEventListener('load', () => {
+    if (navigator.onLine) {
+      fetch(window.location.href, { cache: 'reload' })
+        .then(() => console.log("Online: Fresh content checked"))
+        .catch(() => console.log("Offline mode"));
+    }
+  });
 </script>
+    
 
     
     <style>
@@ -454,32 +478,7 @@ Taj Chowk National Highway Sadiq abad.
 </div>
 
 <script>
-    // 1. Service Worker ko har baar naya fetch karne par majboor karna
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
-        // Har baar jab app khulay, check karo naya version
-        reg.update(); 
-        
-        reg.onupdatefound = () => {
-            const installingWorker = reg.installing;
-            installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // Naya code mil gaya! Page refresh karke apply karo
-                    window.location.reload();
-                }
-            };
-        };
-    });
-}
 
-// 2. Extra Force: Agar internet on hai to cache ko bypass karo
-window.addEventListener('load', () => {
-    if (navigator.onLine) {
-        fetch(window.location.href, { cache: 'reload' }).then(() => {
-            console.log("Network checked for updates");
-        }).catch(err => console.log("Offline mode"));
-    }
-});
     
     let currentExp = ""; 
     let isFinished = false; 
@@ -849,6 +848,7 @@ if (navigator.serviceWorker) {
 </html>
 
     
+
 
 
 
