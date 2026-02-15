@@ -819,7 +819,8 @@ Taj Chowk National Highway Sadiq abad.
         calcLine.value = cleanExp.replace(/\d+(\.\d+)?/g, (n) => Number(n).toLocaleString()) + "=";
         ansLine.innerText = "=" + formattedRes;
         ansLine.classList.add('final-answer');
-        
+        saveToHistory(exp + "=", formattedRes);
+            
         isFinished = true;
     } catch(e) { console.log("Math Error"); }
 }
@@ -970,3 +971,4 @@ window.addEventListener('load', () => {
     
     
     
+
