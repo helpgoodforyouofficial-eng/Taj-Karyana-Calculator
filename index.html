@@ -546,10 +546,38 @@ Taj Chowk National Highway Sadiq abad.
 
     // Fix 4: Copy function with Toast alert
     function copyValue(val) {
-        let cleanVal = val.replace(/,/g, '').replace('=', '').trim();
-        navigator.clipboard.writeText(cleanVal);
-        alert("Copied: " + cleanVal); // Chota toast message
-    }
+    // 1. Commas aur Equal ka nishan khatam karein
+    let cleanVal = val.replace(/,/g, '').replace('=', '').trim();
+    
+    // 2. Clipboard mein copy karein
+    navigator.clipboard.writeText(cleanVal).then(() => {
+        // 3. Purana Alert khatam aur naya Toast create karein
+        let toast = document.createElement("div");
+        toast.innerText = "Copied";
+        
+        // --- Toast Styling ---
+        toast.style.position = "fixed";
+        toast.style.bottom = "80px"; // Screen ke thora upar
+        toast.style.left = "50%";
+        toast.style.transform = "translateX(-50%)";
+        toast.style.backgroundColor = "#333"; // Dark gray background
+        toast.style.color = "#fff"; // White text
+        toast.style.padding = "10px 24px";
+        toast.style.borderRadius = "30px";
+        toast.style.fontSize = "14px";
+        toast.style.zIndex = "10000";
+        toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4)";
+        toast.style.transition = "opacity 0.4s ease";
+        
+        document.body.appendChild(toast);
+
+        // 4. 1.5 second baad khud hi gayab ho jaye
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            setTimeout(() => toast.remove(), 400);
+        }, 1500);
+    });
+}
 
     function toggleEditMode() {
         editMode = !editMode;
@@ -971,4 +999,5 @@ window.addEventListener('load', () => {
     
     
     
+
 
