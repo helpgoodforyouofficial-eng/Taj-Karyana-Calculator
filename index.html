@@ -692,16 +692,28 @@ function updateUI() {
                 let diff = formattedDisplay.length - oldVal.length;
                 calcLine.setSelectionRange(start + diff, start + diff);
             }
-            let mathReady = cleanExp.replace(/×/g, '*').replace(/÷/g, '/').replace(/(\d+(\.\d+)?)%/g, "($1/100)");
-            if (!['+', '-', '*', '/'].includes(mathReady.trim().slice(-1))) {
-                let res = eval(mathReady);
+
+            // PERCENTAGE FIX: Yahan logic badla hai
+            let mathReady = cleanExp.replace(/×/g, '*').replace(/÷/g, '/');
+            // Advanced Percentage Logic: 1000 + 10% -> 1000 + (1000 * 10/100)
+            mathReady = mathReady.replace(/(\d+\.?\d*)\s*([\+\-])\s*(\d+\.?\d*)%/g, "($1 $2 ($1 * $3 / 100))");
+            // Simple Percentage Logic: 20% -> (20/100)
+            mathReady = mathReady.replace(/(\d+\.?\d*)%/g, "($1/100)");
+
+            let evalFriendly = mathReady.trim();
+            if (evalFriendly !== "" && !['+', '-', '*', '/', '%'].includes(evalFriendly.slice(-1))) {
+                let res = eval(evalFriendly);
                 ansLine.innerText = res.toLocaleString(undefined, { maximumFractionDigits: 10 });
             }
         } else { ansLine.innerText = "0"; }
     } catch(e) {}
     calcLine.style.height = 'auto';
     calcLine.style.height = calcLine.scrollHeight + 'px';
-}
+        }
+    
+    
+
+
 
 function calculate() {
     const calcLine = document.getElementById('calculation-line');
@@ -710,32 +722,26 @@ function calculate() {
     if (!exp || exp.includes('=') || isFinished) return;
     try {
         let cleanExp = exp.replace(/,/g, '');
-        let mathExp = cleanExp.replace(/×/g, '*').replace(/÷/g, '/').replace(/(\d+(\.\d+)?)%/g, "($1/100)");
+        let mathExp = cleanExp.replace(/×/g, '*').replace(/÷/g, '/');
+        
+        // Advanced Percentage Logic (Same as above)
+        mathExp = mathExp.replace(/(\d+\.?\d*)\s*([\+\-])\s*(\d+\.?\d*)%/g, "($1 $2 ($1 * $3 / 100))");
+        mathExp = mathExp.replace(/(\d+\.?\d*)%/g, "($1/100)");
+
         while(['+', '-', '*', '/'].includes(mathExp.slice(-1).trim())) {
             mathExp = mathExp.slice(0, -1);
-            cleanExp = cleanExp.slice(0, -1);
         }
+
         let res = eval(mathExp);
         let formattedRes = res.toLocaleString(undefined, { maximumFractionDigits: 10 });
-        let displayExp = cleanExp.replace(/-?\d+\.?\d*/g, (n) => {
-            if (n === '-') return '-';
-            if (n.includes('.')) {
-                let p = n.split('.');
-                return Number(p[0]).toLocaleString() + '.' + p[1];
-            }
-            return Number(n).toLocaleString();
-        }) + "=";
-        calcLine.value = displayExp;
+        
+        calcLine.value = calcLine.value + "=";
         ansLine.innerText = "=" + formattedRes;
         ansLine.classList.add('final-answer');
-        saveToHistory(displayExp, formattedRes);
+        saveToHistory(calcLine.value, formattedRes);
         isFinished = true;
     } catch(e) { console.log("Math Error"); }
 }
-
-
-
-
 
 
 
@@ -879,4 +885,5 @@ window.addEventListener('load', () => {
     
     
     
+
 
