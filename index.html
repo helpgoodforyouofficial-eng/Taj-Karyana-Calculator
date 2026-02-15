@@ -81,19 +81,27 @@
         .view.active { display: flex; }
 
         .display-box { padding: 15px 25px; text-align: right; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
-        #calculation-line { 
-    font-size: 1.4rem; 
-    color: #bbb; 
-    margin-bottom: 8px; 
-    min-height: 30px; 
-    max-height: 25vh; /* Maximum height taake screen ko dhakka na lagay */
-    overflow-y: auto; /* Agar boht zyada lines hon to scroll ho jaye */
-    word-wrap: break-word; /* Bari raqam ko sahi se break karega */
-    white-space: pre-wrap; /* Spaces aur operators ko sahi line mein rakhega */
-    word-break: break-all; /* Kisi bhi point se line break kar dega */
-    line-height: 1.4; /* Lines ke darmiyan munasib faasla */
-    display: block; /* Poori width istemal karega */
+ #calculation-line {
+    width: 100%;
+    font-size: 1.6rem;
+    color: #bbb;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    text-align: right;
+    padding: 10px 0;
+    caret-color: #ff9f0a;
+    font-family: inherit;
+    
+    /* MULTI-LINE LOOK KE LIYE YE ZAROORI HAI */
+    white-space: normal; 
+    word-break: break-all;
+    display: block;
+    height: auto; 
+    max-height: 100px; /* Is se zyada lambi ho to scroll bar aaye */
+    overflow-y: auto;
 }
+
 
         #answer-line { font-size: 2.2rem; color: #fff; min-height: 3.2rem; transition: all 0.2s ease; word-break: break-all; line-height: 1; }
         .final-answer { font-size: 2.4rem !important; font-weight: bold !important; }
@@ -273,6 +281,7 @@
 Taj Chowk National Highway Sadiq abad.
 </div>
 </div>
+
 <div class="app-container">
     <div class="nav">
     <span id="tab-calc" class="active" onclick="switchView('calc')">Calculator</span>
@@ -288,7 +297,7 @@ Taj Chowk National Highway Sadiq abad.
         <div style="text-align: left; font-size: 0.95rem; line-height: 1.8;">
             <p><strong>Developer:</strong> <span style="color: #bbb;">Wasidevelopers</span></p>
             <p><strong>WhatsApp:</strong> <span style="color: #bbb;">0334-6800959</span></p>
-            <p><strong>Version:</strong> <span style="color: #bbb;">v2.0.10 (Stable)</span></p>
+            <p><strong>Version:</strong> <span style="color: #bbb;">v2.0.11</span></p>
         </div>
         <div id="install-container" style="display: none; text-align: center; margin: 20px 0;">
     <button id="install-btn" onclick="handleInstallClick()">
@@ -306,7 +315,8 @@ Taj Chowk National Highway Sadiq abad.
 
     <div id="calc-view" class="view active">
         <div class="display-box">
-            <input type="text" id="calculation-line" placeholder="0" inputmode="none" style="font-size: 1.4rem; color: #bbb; background: transparent; border: none; text-align: right; width: 100%; outline: none; caret-color: #ff9500;">
+            <textarea id="calculation-line" readonly onclick="this.removeAttribute('readonly');" inputmode="none" rows="1"></textarea>
+
             
             <div id="answer-line">0</div>
         </div>
@@ -479,7 +489,7 @@ Taj Chowk National Highway Sadiq abad.
     </div>
 </div>
 <script>
-    
+
 
     let currentExp = ""; 
     let isFinished = false; 
@@ -581,7 +591,7 @@ Taj Chowk National Highway Sadiq abad.
             updateCardStyle(cb.value); 
         }); 
     }
-
+    
     function deleteSelected() {
         const selectedIds = Array.from(document.querySelectorAll('.select-checkbox:checked')).map(cb => cb.value);
         if(selectedIds.length === 0) return;
@@ -591,6 +601,35 @@ Taj Chowk National Highway Sadiq abad.
         toggleEditMode(); 
         loadHistory();
     }
+    
+    function allClear() { 
+    document.getElementById('calculation-line').value = ""; 
+    document.getElementById('answer-line').innerText = "0"; 
+    document.getElementById('answer-line').classList.remove('final-answer'); 
+    isFinished = false;
+}
+
+    
+    function back() {
+    const calcLine = document.getElementById('calculation-line');
+    let start = calcLine.selectionStart;
+    let val = calcLine.value;
+
+    if (isFinished) {
+        isFinished = false;
+        calcLine.value = val.replace("=", "");
+        document.getElementById('answer-line').classList.remove('final-answer');
+    } else if (start > 0) {
+        // Cursor jahan hai, uske peeche wala lafz mitao
+        calcLine.value = val.substring(0, start - 1) + val.substring(calcLine.selectionEnd);
+        calcLine.setSelectionRange(start - 1, start - 1);
+    }
+    calcLine.focus();
+    updateUI();
+}
+
+
+
     
     function addNum(num) {
     const calcLine = document.getElementById('calculation-line');
@@ -653,125 +692,139 @@ Taj Chowk National Highway Sadiq abad.
 
     function addOperator(op) {
     const calcLine = document.getElementById('calculation-line');
+    const ansLine = document.getElementById('answer-line');
     
-    // 1. Pehle * aur / ko sundar symbols mein badlein
     if (op === '*') op = '×';
     if (op === '/') op = '÷';
 
     let val = calcLine.value;
-    let start = calcLine.selectionStart;
-    let lastChar = val.charAt(start - 1);
 
-    // 2. Check mein bhi naye symbols shamil karein
-    if (['+', '-', '×', '÷', '*', '/', '%'].includes(lastChar)) {
-        calcLine.value = val.substring(0, start - 1) + op + val.substring(start);
-        calcLine.setSelectionRange(start, start);
-    } else {
-        // Baqi normal logic...
-        calcLine.value = val.substring(0, start) + op + val.substring(start);
-        calcLine.setSelectionRange(start + 1, start + 1);
+    if (val.trim() === "") {
+        calcLine.value = (op === '-') ? op : "0" + op;
+        updateUI();
+        return;
     }
-    
-    calcLine.focus();
-    updateUI();
-}
 
-
-
-    function allClear() { 
-    document.getElementById('calculation-line').value = ""; 
-    document.getElementById('answer-line').innerText = "0"; 
-    document.getElementById('answer-line').classList.remove('final-answer'); 
-    isFinished = false;
-}
-
-    
-    function back() {
-    const calcLine = document.getElementById('calculation-line');
-    let start = calcLine.selectionStart;
-    let val = calcLine.value;
-
-    if (isFinished) {
+    // FIX: Agar equal press ho chuka hai
+    if (isFinished || val.includes('=')) {
         isFinished = false;
-        calcLine.value = val.replace(" =", "");
-        document.getElementById('answer-line').classList.remove('final-answer');
-    } else if (start > 0) {
-        // Cursor jahan hai, uske peeche wala lafz mitao
-        calcLine.value = val.substring(0, start - 1) + val.substring(calcLine.selectionEnd);
-        calcLine.setSelectionRange(start - 1, start - 1);
+        // Answer line se "=" ka nishaan aur spaces saaf karein
+        let finalAns = ansLine.innerText.replace('=', '').replace(' ', '').trim();
+        calcLine.value = finalAns + op;
+        ansLine.classList.remove('final-answer');
+    } 
+    else {
+        let lastChar = val.slice(-1);
+        if (['+', '-', '×', '÷', '*', '/', '%'].includes(lastChar)) {
+            calcLine.value = val.slice(0, -1) + op;
+        } else {
+            calcLine.value = val + op;
+        }
     }
+    
     calcLine.focus();
     updateUI();
+    
+    // Cursor ko aakhir mein set karein
+    let len = calcLine.value.length;
+    calcLine.setSelectionRange(len, len);
 }
+
+
+
+
+
+
+
+
+    
 
 
 
     function updateUI() {
     const ansLine = document.getElementById('answer-line');
     const calcLine = document.getElementById('calculation-line');
-    let exp = calcLine.value; // Variable ki jagah ab input field se value li hai
+    
+    // 1. Cursor ki mojooda position save karein
+    let start = calcLine.selectionStart;
+    let oldLength = calcLine.value.length;
+
+    let exp = calcLine.value;
 
     try {
         if (exp) {
-            // Math conversion: symbols ko badlein taake computer samajh sakay
-            let mathReady = exp.replace(/×/g, '*').replace(/÷/g, '/').replace(/(\d+(\.\d+)?)%/g, "($1/100)");
+            // Commas hatayein taake calculation sahi ho
+            let cleanExp = exp.replace(/=/g, '').replace(/,/g, ''); 
+            let mathReady = cleanExp.replace(/×/g, '*').replace(/÷/g, '/').replace(/(\d+(\.\d+)?)%/g, "($1/100)");
             
-            // Agar aakhir mein symbol (+, -, *, /) nahi hai, to result dikhao
-            if (!['+', '-', '*', '/'].includes(mathReady.slice(-1))) {
+            // Numbers ko format karein (Commas lagayein)
+            let formattedDisplay = cleanExp.replace(/\d+(\.\d+)?/g, (num) => {
+                // Agar point ke baad zero hai to localeString use na karein taake typing kharab na ho
+                if(num.endsWith('.')) return num;
+                return Number(num).toLocaleString(undefined, { maximumFractionDigits: 10 });
+            });
+
+            // Display update karein
+            let newText = exp.includes('=') ? formattedDisplay + "=" : formattedDisplay;
+            calcLine.value = newText;
+
+            // 2. Cursor Position Restore karein (Jadu!)
+            let newLength = calcLine.value.length;
+            let diff = newLength - oldLength;
+            calcLine.setSelectionRange(start + diff, start + diff);
+
+            // Answer update
+            if (!['+', '-', '*', '/'].includes(mathReady.trim().slice(-1))) {
                 let res = eval(mathReady);
-                ansLine.innerText = res.toLocaleString(undefined, {maximumFractionDigits: 2});
+                // Decimal handling fix: 30011.00 wala masla yahan sahi hoga
+                ansLine.innerText = res.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 10 });
             }
         } else {
             ansLine.innerText = "0";
         }
-    } catch(e) {
-        // Calculation adhuri ho to purana answer hi dikhata rahe
-    }
+    } catch(e) {}
+
+    calcLine.style.height = 'auto';
+    calcLine.style.height = calcLine.scrollHeight + 'px'; 
+    calcLine.scrollTop = calcLine.scrollHeight;
 }
-
-
-
 
     function calculate() {
     const calcLine = document.getElementById('calculation-line');
     const ansLine = document.getElementById('answer-line');
     let exp = calcLine.value;
 
-    // 1. Agar line khali hai ya aakhir mein pehle se "=" hai, to function rok do
-    if (!exp || exp.trim().endsWith('=')) return;
+    if (exp.trim().endsWith('=')) {
+        let finalAns = ansLine.innerText.replace('=', '').replace(/,/g, '').trim();
+        calcLine.value = Number(finalAns).toLocaleString(); 
+        ansLine.classList.remove('final-answer');
+        isFinished = false; 
+        return; 
+    }
 
     try {
-        // Symbols badlein
-        let mathExp = exp.replace(/×/g, '*').replace(/÷/g, '/').replace(/(\d+(\.\d+)?)%/g, "($1/100)");
+        // Commas hatana zaroori hai calculation se pehle
+        let cleanExp = exp.replace(/,/g, '');
+        let mathExp = cleanExp.replace(/×/g, '*').replace(/÷/g, '/').replace(/(\d+(\.\d+)?)%/g, "($1/100)");
         
-        // Aakhir mein agar operators (+, -, *, /) hon to hata dein
-        while(['+', '-', '*', '/'].includes(mathExp.slice(-1))) {
+        while(['+', '-', '*', '/'].includes(mathExp.slice(-1).trim())) {
             mathExp = mathExp.slice(0, -1);
-            exp = exp.slice(0, -1);
+            cleanExp = cleanExp.slice(0, -1);
         }
 
         let res = eval(mathExp);
-        let formattedRes = res.toLocaleString(undefined, {maximumFractionDigits: 2});
+        // Res ko string mein convert kar ke store karein taake precision loss na ho
+        let formattedRes = res.toLocaleString(undefined, { maximumFractionDigits: 10 });
         
-        // Result set karein
-        calcLine.value = exp + " =";
-        ansLine.innerText = "= " + formattedRes;
+        calcLine.value = cleanExp.replace(/\d+(\.\d+)?/g, (n) => Number(n).toLocaleString()) + "=";
+        ansLine.innerText = "=" + formattedRes;
         ansLine.classList.add('final-answer');
         
-        saveToHistory(exp + " =", formattedRes);
         isFinished = true;
-
-        // Cursor ko aakhir mein set karein
-        setTimeout(() => {
-            calcLine.focus();
-            calcLine.setSelectionRange(calcLine.value.length, calcLine.value.length);
-        }, 10);
-
-    } catch(e) { 
-        // Agar koi ghalti ho to "Error" tabhi dikhaye jab waqai raqam ghalat ho
-        console.log("Calculation error ignored");
-    }
+    } catch(e) { console.log("Math Error"); }
 }
+
+
 
 
 
@@ -915,6 +968,5 @@ window.addEventListener('load', () => {
 </body>
 </html>
     
-
-
-
+    
+    
